@@ -1,0 +1,1 @@
+Pose reference images in this folder were generated for the AarogyaSaathi project. They are illustrative guides, not medical or alignment certification. Always follow the written safety cues and stop if a pose causes pain.

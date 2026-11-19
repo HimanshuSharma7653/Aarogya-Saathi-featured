@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page exercise-page">
+  <div class="exercise-hero">
+    <div><p class="eyebrow">MOVE • BREATHE • FEEL BETTER</p><h1>Exercise & Yoga Studio</h1><p class="subtitle">Explore guided movement, learn yoga poses and practise with live camera-based pose feedback.</p></div>
+    <img src="{{ url_for('static', filename='images/yoga/beginner-yoga-guide.png') }}" alt="Illustrated beginner yoga pose guide">
+  </div>
+
+  <div class="studio-stats">
+    <div><span>🏃</span><strong>Daily movement</strong><small>Gentle activity ideas</small></div>
+    <div><span>🧘</span><strong>Yoga library</strong><small>Pose instructions & images</small></div>
+    <div><span>📷</span><strong>Live pose coach</strong><small>Webcam landmark feedback</small></div>
+  </div>
+
+  <div class="section-heading"><div><h2>Exercise explorer</h2><p class="subtitle">Browse local suggestions or search the wger exercise catalogue.</p></div></div>
+  <div class="exercise-grid" id="exerciseGrid">
+    {% for ex in exercises %}<article class="exercise-card"><span class="exercise-icon">💪</span><h3>{{ ex.name }}</h3><div class="nutrition-row"><span>⏱ {{ ex.duration }}</span><span>{{ ex.difficulty }}</span></div><p>{{ ex.why }}</p></article>{% endfor %}
+  </div>
+  <div class="api-search"><div><h3>Explore more exercises</h3><p>Search the wger public exercise catalogue. If it is offline, the local exercise suggestions above remain available.</p></div><div class="api-search-controls"><input id="exerciseSearch" type="search" placeholder="Search e.g. squat, stretching, push up"><button type="button" id="searchExercises">Search</button></div></div>
+  <div id="apiExerciseResults" class="api-exercise-results" aria-live="polite"></div>
+
+  <div class="live-coach" id="liveCoach">
+    <div class="coach-heading"><div><p class="eyebrow">CAMERA-BASED PRACTICE</p><h2>Live AI Yoga Coach</h2><p class="subtitle">Choose a supported pose, allow camera access and follow the on-screen alignment cues.</p></div><span class="live-pill">● LIVE PRACTICE</span></div>
+    <div class="coach-layout">
+      <div class="camera-panel">
+        <div class="camera-stage"><video id="webcam" playsinline muted></video><canvas id="poseCanvas"></canvas><div class="camera-placeholder" id="cameraPlaceholder"><span>📷</span><strong>Your camera preview appears here</strong><small>Use a well-lit space and keep your full body in frame.</small></div></div>
+        <div class="camera-actions"><button type="button" id="startCamera">Start camera</button><button type="button" id="stopCamera" class="secondary" disabled>Stop</button><span id="cameraStatus" role="status">Camera is off</span></div>
+      </div>
+      <div class="coach-side">
+        <label for="poseSelect">Practice pose</label><select id="poseSelect"><option value="warrior2">Warrior II</option><option value="mountain">Mountain Pose</option><option value="tree">Tree Pose</option><option value="warrior1">Warrior I</option><option value="cobra">Cobra Pose</option><option value="child">Child's Pose</option><option value="bridge">Bridge Pose</option></select>
+        <div class="coach-reference"><img id="selectedPoseImage" src="{{ url_for('static', filename='images/yoga/poses/warrior-two.jpg') }}" alt="Warrior II pose demonstration"><div><strong id="selectedPoseName">Warrior II</strong><small id="selectedPoseHint">Keep both arms extended and shoulders level.</small></div></div>
+        <div class="coach-metric"><span>Landmark visibility</span><strong id="visibilityValue">Waiting</strong></div>
+        <div class="coach-metric"><span>Alignment cue</span><strong id="alignmentValue">Start camera to begin</strong></div>
+        <div class="coach-feedback" id="coachFeedback">Stand far enough from the camera so your full body is visible. This is a movement aid, not medical or professional yoga instruction.</div>
+        <div class="hold-timer"><span>Practice timer</span><strong id="holdTimer">00:00</strong><button type="button" id="timerToggle" class="secondary">Start timer</button></div>
+      </div>
+    </div>
+    <p class="coach-disclaimer">Privacy: camera frames are processed in your browser and are not uploaded to the Flask server. Feedback is approximate and should not be treated as medical advice. Stop if you feel pain, dizziness or discomfort.</p>
+  </div>
+
+  <div class="yoga-heading"><div><h2>Beginner yoga poses</h2><p class="subtitle">Select a pose to view its image, steps, benefits and precautions.</p></div></div>
+  <img class="pose-guide-banner" src="{{ url_for('static', filename='images/yoga/yoga-pose-collage.png') }}" alt="Six illustrated beginner yoga poses">
+  <div class="pose-grid" id="poseGrid"></div>
+  <div class="rules-grid"><div class="rule-box"><h3>✅ Good times to practise</h3><ul>{% for item in timing_guide.good_times %}<li>{{ item }}</li>{% endfor %}</ul></div><div class="rule-box avoid"><h3>⚠️ When to avoid or be careful</h3><ul>{% for item in timing_guide.avoid_times %}<li>{{ item }}</li>{% endfor %}</ul></div></div>
+</section>
+<div class="overlay" id="poseOverlay" role="dialog" aria-modal="true" aria-labelledby="modalName"><div class="modal"><button class="close-btn" id="closePoseModal" aria-label="Close">✕</button><div class="modal-image" id="modalImage"></div><h2 id="modalName"></h2><div class="sanskrit" id="modalSanskrit"></div><h4>How to do it</h4><ol id="modalSteps"></ol><h4>Benefits</h4><ul id="modalBenefits"></ul><div class="caution" id="modalCaution"></div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const poseData = {{ yoga_poses | tojson }};
+const poseGrid = document.getElementById('poseGrid');
+const poseImageBase = {{ url_for('static', filename='images/yoga/poses/') | tojson }};
+const poseImageFiles = {
+  'Mountain Pose':'mountain-pose.jpg','Tree Pose':'tree-pose.jpg','Warrior I':'warrior-one.jpg',
+  'Warrior II':'warrior-two.jpg','Cobra Pose':'cobra-pose.jpg',"Child's Pose":'childs-pose.jpg',
+  'Bridge Pose':'bridge-pose.jpg','Cat-Cow Stretch':'cat-cow.jpg',
+  'Seated Forward Bend':'seated-forward-bend.jpg','Corpse Pose':'corpse-pose.jpg'
+};
+function poseImageUrl(name){return poseImageBase + (poseImageFiles[name] || 'mountain-pose.jpg');}
+poseData.forEach((pose, index) => {
+  const card = document.createElement('button'); card.type='button'; card.className='pose-card';
+  const art = document.createElement('div'); art.className='pose-image';
+  const image = document.createElement('img'); image.src=poseImageUrl(pose.name); image.alt=pose.name+' demonstration'; image.loading='lazy'; art.appendChild(image);
+  const info = document.createElement('div'); info.className='pose-info';
+  const title=document.createElement('h3'); title.textContent=pose.name;
+  const sans=document.createElement('span'); sans.textContent=pose.sanskrit;
+  const link=document.createElement('span'); link.className='btn-small'; link.textContent='View instructions →';
+  info.append(title,sans,document.createElement('br'),link); card.append(art,info); card.addEventListener('click',()=>openPoseModal(index)); poseGrid.appendChild(card);
+});
+function openPoseModal(index){const p=poseData[index];const image=document.createElement('img');image.src=poseImageUrl(p.name);image.alt=p.name+' full pose demonstration';image.className='pose-modal-photo';const holder=document.getElementById('modalImage');holder.replaceChildren(image);document.getElementById('modalName').textContent=p.name;document.getElementById('modalSanskrit').textContent=p.sanskrit;document.getElementById('modalCaution').textContent='⚠️ '+p.caution;const steps=document.getElementById('modalSteps');steps.replaceChildren(...p.steps.map(s=>{const li=document.createElement('li');li.textContent=s;return li;}));const benefits=document.getElementById('modalBenefits');benefits.replaceChildren(...p.benefits.map(s=>{const li=document.createElement('li');li.textContent=s;return li;}));document.getElementById('poseOverlay').classList.add('active');}
+document.getElementById('closePoseModal').addEventListener('click',()=>document.getElementById('poseOverlay').classList.remove('active'));
+
+// wger search; local exercise cards stay available when the remote API is offline.
+async function searchExercises(){const q=document.getElementById('exerciseSearch').value.trim();const out=document.getElementById('apiExerciseResults');out.textContent='Searching exercise catalogue…';try{const res=await fetch('/api/exercises?q='+encodeURIComponent(q));const data=await res.json();out.replaceChildren();if(!data.items.length){out.textContent=data.message||'No remote results right now. Try the local exercise suggestions above.';return;}data.items.forEach(item=>{const card=document.createElement('article');card.className='api-exercise-card';if(item.image){const img=document.createElement('img');img.src=item.image;img.alt=item.name;img.loading='lazy';card.appendChild(img);}const h=document.createElement('h4');h.textContent=item.name;const p=document.createElement('p');p.textContent=(item.description||'').replace(/<[^>]*>/g,' ').slice(0,240);const small=document.createElement('small');small.textContent='Source: wger';card.append(h,p,small);out.appendChild(card);});}catch(e){out.textContent='Could not reach the exercise API. Local exercises are still available.';}}
+document.getElementById('searchExercises').addEventListener('click',searchExercises);document.getElementById('exerciseSearch').addEventListener('keydown',e=>{if(e.key==='Enter')searchExercises();});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='js/live_pose.js') }}"></script>
+{% endblock %}
