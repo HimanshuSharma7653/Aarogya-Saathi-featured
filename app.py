@@ -21,7 +21,15 @@ from translations import get_text
 # =========================================================
 # APP CONFIGURATION
 # =========================================================
+
+
 app = Flask(__name__)
+
+# vercel deployment updates ***************************
+
+database.init_db()
+
+# vercel deployment updates ***************************
 app.secret_key = os.environ.get("SECRET_KEY") or "local-development-key-change-before-deployment"
 
 TODAY = lambda: date.today().isoformat()

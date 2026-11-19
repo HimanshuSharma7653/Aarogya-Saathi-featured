@@ -9,7 +9,17 @@ import os
 import random
 from flask import session
 
-DB_NAME = os.path.join(os.path.dirname(__file__), "aarogyasaathi.db")
+
+# Vercel deployment updates **************************
+
+if os.environ.get("VERCEL"):
+    DB_NAME = "/tmp/aarogyasaathi.db"
+else:
+    DB_NAME = os.path.join(os.path.dirname(__file__), "aarogyasaathi.db")
+
+
+# Vercel deployment updates **************************
+
 
 
 def get_connection():
